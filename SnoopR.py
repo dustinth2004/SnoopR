@@ -537,6 +537,7 @@ def visualize_devices_snoopers_and_alerts(device_detections, snoopers, alerts, o
         folium.Marker(
             location=(lat, lon),
             popup=folium.Popup(popup_info, parse_html=True, max_width=300),
+            tooltip=f"{name} ({dev_type})",
             icon=folium.Icon(color=icon_color, icon=icon_symbol, prefix='fa')
         ).add_to(device_marker_cluster)
 
@@ -569,7 +570,8 @@ def visualize_devices_snoopers_and_alerts(device_detections, snoopers, alerts, o
                 fill=True,
                 fill_color='orange',
                 fill_opacity=0.7,
-                popup=folium.Popup(popup_info, parse_html=True, max_width=300)
+                popup=folium.Popup(popup_info, parse_html=True, max_width=300),
+                tooltip=f"Snooper: {mac}"
             ).add_to(snooper_marker_cluster)
 
             # Draw lines between detections to show movement
@@ -627,11 +629,35 @@ def visualize_devices_snoopers_and_alerts(device_detections, snoopers, alerts, o
         folium.Marker(
             location=(lat, lon),
             popup=folium.Popup(popup_info, parse_html=True, max_width=300),
+            tooltip=f"Alert: {alert_type}",
             icon=folium.Icon(color='black', icon='exclamation-triangle', prefix='fa')
         ).add_to(alert_marker_cluster)
 
     # Add layer control to toggle visibility
     folium.LayerControl().add_to(device_map)
+
+    # Add Map Legend
+    legend_html = '''
+    <div style="
+        position: fixed;
+        bottom: 50px; left: 50px; width: 160px; height: auto;
+        z-index:9999; font-size:14px;
+        background-color: white; opacity: 0.9;
+        padding: 10px; border: 2px solid grey; border-radius: 5px;
+        box-shadow: 3px 3px 3px rgba(0,0,0,0.2);
+    ">
+        <b>Map Legend</b><br>
+        <i class="fa fa-wifi" style="color:blue"></i> Wi-Fi AP<br>
+        <i class="fa fa-user" style="color:lightblue"></i> Wi-Fi Client<br>
+        <i class="fa fa-bluetooth" style="color:green"></i> Bluetooth<br>
+        <i class="fa fa-car" style="color:purple"></i> TPMS<br>
+        <i class="fa fa-plane" style="color:blue"></i> Airplane<br>
+        <i class="fa fa-plane" style="color:red"></i> Drone<br>
+        <i class="fa fa-exclamation-triangle" style="color:black"></i> Alert<br>
+        <i class="fa fa-circle" style="color:orange"></i> Snooper<br>
+    </div>
+    '''
+    device_map.get_root().html.add_child(folium.Element(legend_html))
 
     # Ensure the output directory exists
     output_dir = os.path.dirname(output_map_file)
