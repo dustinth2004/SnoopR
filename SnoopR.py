@@ -207,6 +207,9 @@ def extract_device_detections(kismet_file):
     cursor = conn.cursor()
 
     # Fetch all device detections with timestamps and location data
+    # Query retrieves devices sorted by time.
+    # CRITICAL: The ORDER BY clause ensures that detections are extracted in chronological order.
+    # This optimization allows us to skip sorting later in detect_snoopers.
     query = """
     SELECT devmac, type, device, min_lat, min_lon, last_time
     FROM devices
@@ -308,7 +311,8 @@ def detect_snoopers(device_detections, movement_threshold=0.05):
         if len(detections) < 2:
             continue  # Need at least two detections to calculate movement
 
-        detections = sorted(detections, key=lambda x: x['last_time'] or 0)
+        # Detections are already sorted by time from the database query.
+        # Removing redundant sort: sorted(detections, key=lambda x: x['last_time'] or 0)
         total_distance = 0
         for i in range(1, len(detections)):
             lat1, lon1 = detections[i-1]['lat'], detections[i-1]['lon']
@@ -546,9 +550,7 @@ def visualize_devices_snoopers_and_alerts(device_detections, snoopers, alerts, o
         detections = snooper['detections']
         total_distance = snooper['total_distance']
 
-        # Sort detections by time
-        detections = sorted(detections, key=lambda x: x['last_time'] or 0)
-
+        # Detections are already sorted.
         # Add markers for each detection
         for i, detection in enumerate(detections):
             lat = detection['lat']
