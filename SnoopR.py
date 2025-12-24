@@ -62,9 +62,9 @@ known_drone_ssids = [
 ]
 
 # Known Drone MAC Address Prefixes (OUIs)
-known_drone_mac_prefixes = [
+known_drone_mac_prefixes = {
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
-]
+}
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -163,7 +163,7 @@ def is_drone(ssid, mac_address):
     if ssid and any(drone_ssid in ssid for drone_ssid in known_drone_ssids):
         return True
     mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if any(drone_mac_prefix in mac_prefix for drone_mac_prefix in known_drone_mac_prefixes):
+    if mac_prefix in known_drone_mac_prefixes:
         return True
     return False
 
