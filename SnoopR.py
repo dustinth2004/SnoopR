@@ -58,13 +58,16 @@ logging.basicConfig(
 
 # List of known drone SSIDs or MAC address prefixes (OUIs)
 known_drone_ssids = [
-    "DJI-Mavic", "DJI-Avata", "DJI-Thermal", "DJI", "Brinc-Lemur", "Autel-Evo", "DJI-Matrice"
+    "DJI", "Brinc-Lemur", "Autel-Evo"
 ]
 
 # Known Drone MAC Address Prefixes (OUIs)
-known_drone_mac_prefixes = [
+known_drone_mac_prefixes = {
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
-]
+}
+
+# Characters to remove during sanitization
+CHARS_TO_REMOVE = ['{', '}', '|', '[', ']', '"', "'", '\\', '<', '>', '%']
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -143,7 +146,7 @@ def sanitize_string(s):
         return 'Unknown'
     try:
         s = str(s)
-        for c in ['{', '}', '|', '[', ']', '"', "'", '\\', '<', '>', '%']:
+        for c in CHARS_TO_REMOVE:
             s = s.replace(c, '')
         return s
     except (AttributeError, ValueError):
@@ -162,8 +165,10 @@ def is_drone(ssid, mac_address):
     """
     if ssid and any(drone_ssid in ssid for drone_ssid in known_drone_ssids):
         return True
-    mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if any(drone_mac_prefix in mac_prefix for drone_mac_prefix in known_drone_mac_prefixes):
+    # Assumes mac_address is already lowercased by caller (which is true in extract_device_detections)
+    # Using O(1) lookup in set
+    mac_prefix = mac_address[:8]  # First 3 octets
+    if mac_prefix in known_drone_mac_prefixes:
         return True
     return False
 
@@ -480,7 +485,9 @@ def visualize_devices_snoopers_and_alerts(device_detections, snoopers, alerts, o
 
     for a in alerts:
         if is_valid_lat_lon(a['lat'], a['lon']):
-            all_locations.append((float(a['lat']), float(a['lon']), a['time']))
+            # Ensure time is a timestamp (float/int) for sorting, consistent with device data
+            ts = a['time'].timestamp() if a['time'] else 0
+            all_locations.append((float(a['lat']), float(a['lon']), ts))
 
     if all_locations:
         # Use the first valid location
