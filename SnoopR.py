@@ -57,14 +57,16 @@ logging.basicConfig(
 )
 
 # List of known drone SSIDs or MAC address prefixes (OUIs)
+# Optimized: Removed specific DJI models since 'DJI' covers them all
 known_drone_ssids = [
-    "DJI-Mavic", "DJI-Avata", "DJI-Thermal", "DJI", "Brinc-Lemur", "Autel-Evo", "DJI-Matrice"
+    "DJI", "Brinc-Lemur", "Autel-Evo"
 ]
 
 # Known Drone MAC Address Prefixes (OUIs)
-known_drone_mac_prefixes = [
+# Optimized: Changed to set for O(1) lookup
+known_drone_mac_prefixes = {
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
-]
+}
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -163,7 +165,7 @@ def is_drone(ssid, mac_address):
     if ssid and any(drone_ssid in ssid for drone_ssid in known_drone_ssids):
         return True
     mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if any(drone_mac_prefix in mac_prefix for drone_mac_prefix in known_drone_mac_prefixes):
+    if mac_prefix in known_drone_mac_prefixes:
         return True
     return False
 
@@ -267,19 +269,19 @@ def extract_device_detections(kismet_file):
             logging.debug(f"Skipping device {mac} due to invalid coordinates.")
             continue
 
+        # Optimize: Sanitize name once and reuse
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+
         detection = {
             'mac': mac,
             'device_type': device_type,
-            'name': sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
+            'name': common_name,
             'encryption': sanitize_string(device_dict.get('kismet.device.base.crypt', 'Unknown')),
             'lat': float(min_lat),
             'lon': float(min_lon),
             'last_seen_time': last_seen_time,
             'last_time': last_time if last_time else None,
-            'drone_detected': is_drone(
-                sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
-                mac
-            )
+            'drone_detected': is_drone(common_name, mac)
         }
 
         device_detections[mac].append(detection)
@@ -308,7 +310,8 @@ def detect_snoopers(device_detections, movement_threshold=0.05):
         if len(detections) < 2:
             continue  # Need at least two detections to calculate movement
 
-        detections = sorted(detections, key=lambda x: x['last_time'] or 0)
+        # Optimized: Removed redundant sorting. Detections are appended in chronological order from DB.
+        # detections = sorted(detections, key=lambda x: x['last_time'] or 0)
         total_distance = 0
         for i in range(1, len(detections)):
             lat1, lon1 = detections[i-1]['lat'], detections[i-1]['lon']
