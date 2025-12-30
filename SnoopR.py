@@ -62,9 +62,9 @@ known_drone_ssids = [
 ]
 
 # Known Drone MAC Address Prefixes (OUIs)
-known_drone_mac_prefixes = [
+known_drone_mac_prefixes = {
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
-]
+}
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -267,17 +267,18 @@ def extract_device_detections(kismet_file):
             logging.debug(f"Skipping device {mac} due to invalid coordinates.")
             continue
 
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
         detection = {
             'mac': mac,
             'device_type': device_type,
-            'name': sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
+            'name': common_name,
             'encryption': sanitize_string(device_dict.get('kismet.device.base.crypt', 'Unknown')),
             'lat': float(min_lat),
             'lon': float(min_lon),
             'last_seen_time': last_seen_time,
             'last_time': last_time if last_time else None,
             'drone_detected': is_drone(
-                sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
+                common_name,
                 mac
             )
         }
