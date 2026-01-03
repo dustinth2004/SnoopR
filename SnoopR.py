@@ -267,17 +267,18 @@ def extract_device_detections(kismet_file):
             logging.debug(f"Skipping device {mac} due to invalid coordinates.")
             continue
 
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
         detection = {
             'mac': mac,
             'device_type': device_type,
-            'name': sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
+            'name': common_name,
             'encryption': sanitize_string(device_dict.get('kismet.device.base.crypt', 'Unknown')),
             'lat': float(min_lat),
             'lon': float(min_lon),
             'last_seen_time': last_seen_time,
             'last_time': last_time if last_time else None,
             'drone_detected': is_drone(
-                sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
+                common_name,
                 mac
             )
         }
