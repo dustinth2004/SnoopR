@@ -31,7 +31,6 @@ Requirements:
 """
 
 import sqlite3
-import folium
 import json
 import os
 import glob
@@ -40,6 +39,9 @@ from math import radians, cos, sin, asin, sqrt
 from collections import defaultdict
 import logging
 import argparse
+import re
+
+import folium
 from folium.plugins import MarkerCluster
 
 # ===========================
@@ -60,11 +62,14 @@ logging.basicConfig(
 known_drone_ssids = [
     "DJI-Mavic", "DJI-Avata", "DJI-Thermal", "DJI", "Brinc-Lemur", "Autel-Evo", "DJI-Matrice"
 ]
+# Pre-compile regex for faster SSID matching
+DRONE_SSID_REGEX = re.compile('|'.join(map(re.escape, known_drone_ssids)))
 
 # Known Drone MAC Address Prefixes (OUIs)
-known_drone_mac_prefixes = [
+# Use a set for O(1) lookup
+KNOWN_DRONE_MAC_PREFIXES = {
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
-]
+}
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -160,10 +165,10 @@ def is_drone(ssid, mac_address):
     Returns:
         bool: True if device is a known drone, False otherwise.
     """
-    if ssid and any(drone_ssid in ssid for drone_ssid in known_drone_ssids):
+    if ssid and DRONE_SSID_REGEX.search(ssid):
         return True
     mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if any(drone_mac_prefix in mac_prefix for drone_mac_prefix in known_drone_mac_prefixes):
+    if mac_prefix in KNOWN_DRONE_MAC_PREFIXES:
         return True
     return False
 
@@ -267,19 +272,19 @@ def extract_device_detections(kismet_file):
             logging.debug(f"Skipping device {mac} due to invalid coordinates.")
             continue
 
+        # Sanitize name once
+        name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+
         detection = {
             'mac': mac,
             'device_type': device_type,
-            'name': sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
+            'name': name,
             'encryption': sanitize_string(device_dict.get('kismet.device.base.crypt', 'Unknown')),
             'lat': float(min_lat),
             'lon': float(min_lon),
             'last_seen_time': last_seen_time,
             'last_time': last_time if last_time else None,
-            'drone_detected': is_drone(
-                sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
-                mac
-            )
+            'drone_detected': is_drone(name, mac)
         }
 
         device_detections[mac].append(detection)
@@ -308,7 +313,7 @@ def detect_snoopers(device_detections, movement_threshold=0.05):
         if len(detections) < 2:
             continue  # Need at least two detections to calculate movement
 
-        detections = sorted(detections, key=lambda x: x['last_time'] or 0)
+        # Detections are already sorted by last_time from the DB query + append order
         total_distance = 0
         for i in range(1, len(detections)):
             lat1, lon1 = detections[i-1]['lat'], detections[i-1]['lon']
