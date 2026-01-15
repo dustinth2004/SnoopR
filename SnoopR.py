@@ -31,8 +31,8 @@ Requirements:
 """
 
 import sqlite3
-import folium
 import json
+import re
 import os
 import glob
 import datetime
@@ -40,6 +40,7 @@ from math import radians, cos, sin, asin, sqrt
 from collections import defaultdict
 import logging
 import argparse
+import folium
 from folium.plugins import MarkerCluster
 
 # ===========================
@@ -65,6 +66,10 @@ known_drone_ssids = [
 known_drone_mac_prefixes = [
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
 ]
+
+# Pre-compile regex and set for faster lookups
+DRONE_SSID_PATTERN = re.compile('|'.join(re.escape(s) for s in known_drone_ssids))
+DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -129,6 +134,9 @@ def haversine(lon1, lat1, lon2, lat2):
     miles = 3956 * c
     return miles
 
+# Regex for sanitization
+SANITIZE_REGEX = re.compile(r'[{}\|\[\]"\'\\<>%]')
+
 def sanitize_string(s):
     """
     Sanitize strings to prevent Jinja2 parsing errors.
@@ -142,10 +150,7 @@ def sanitize_string(s):
     if not s:
         return 'Unknown'
     try:
-        s = str(s)
-        for c in ['{', '}', '|', '[', ']', '"', "'", '\\', '<', '>', '%']:
-            s = s.replace(c, '')
-        return s
+        return SANITIZE_REGEX.sub('', str(s))
     except (AttributeError, ValueError):
         return 'Unknown'
 
@@ -160,11 +165,13 @@ def is_drone(ssid, mac_address):
     Returns:
         bool: True if device is a known drone, False otherwise.
     """
-    if ssid and any(drone_ssid in ssid for drone_ssid in known_drone_ssids):
+    if ssid and DRONE_SSID_PATTERN.search(ssid):
         return True
-    mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if any(drone_mac_prefix in mac_prefix for drone_mac_prefix in known_drone_mac_prefixes):
-        return True
+
+    if mac_address and len(mac_address) >= 8:
+        if mac_address[:8].lower() in DRONE_MAC_PREFIXES_SET:
+            return True
+
     return False
 
 def is_valid_lat_lon(lat, lon):
@@ -267,19 +274,18 @@ def extract_device_detections(kismet_file):
             logging.debug(f"Skipping device {mac} due to invalid coordinates.")
             continue
 
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+
         detection = {
             'mac': mac,
             'device_type': device_type,
-            'name': sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
+            'name': common_name,
             'encryption': sanitize_string(device_dict.get('kismet.device.base.crypt', 'Unknown')),
             'lat': float(min_lat),
             'lon': float(min_lon),
             'last_seen_time': last_seen_time,
             'last_time': last_time if last_time else None,
-            'drone_detected': is_drone(
-                sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown')),
-                mac
-            )
+            'drone_detected': is_drone(common_name, mac)
         }
 
         device_detections[mac].append(detection)
