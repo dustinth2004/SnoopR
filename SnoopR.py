@@ -31,16 +31,17 @@ Requirements:
 """
 
 import sqlite3
-import folium
 import json
 import os
 import glob
 import re
 import datetime
-from math import radians, cos, sin, asin, sqrt
-from collections import defaultdict
 import logging
 import argparse
+from math import radians, cos, sin, asin, sqrt
+from collections import defaultdict
+
+import folium
 from folium.plugins import MarkerCluster
 
 # ===========================
@@ -61,16 +62,14 @@ logging.basicConfig(
 known_drone_ssids = [
     "DJI-Mavic", "DJI-Avata", "DJI-Thermal", "DJI", "Brinc-Lemur", "Autel-Evo", "DJI-Matrice"
 ]
-
-# Precompiled Regex for SSIDs (Optimization)
+# Pre-compile regex for drone SSIDs
 DRONE_SSID_PATTERN = re.compile("|".join(map(re.escape, known_drone_ssids)))
 
 # Known Drone MAC Address Prefixes (OUIs)
 known_drone_mac_prefixes = [
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
 ]
-
-# Set for MAC Prefixes (Optimization: O(1) lookup)
+# Convert to set for O(1) lookup
 DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
@@ -169,8 +168,8 @@ def is_drone(ssid, mac_address):
     """
     if ssid and DRONE_SSID_PATTERN.search(ssid):
         return True
-    # Check MAC prefix using set lookup (optimized)
-    if mac_address[:8].lower() in DRONE_MAC_PREFIXES_SET:
+    mac_prefix = mac_address[:8].lower()  # First 3 octets
+    if mac_prefix in DRONE_MAC_PREFIXES_SET:
         return True
     return False
 
@@ -274,20 +273,17 @@ def extract_device_detections(kismet_file):
             logging.debug(f"Skipping device {mac} due to invalid coordinates.")
             continue
 
-        device_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
         detection = {
             'mac': mac,
             'device_type': device_type,
-            'name': device_name,
+            'name': common_name,
             'encryption': sanitize_string(device_dict.get('kismet.device.base.crypt', 'Unknown')),
             'lat': float(min_lat),
             'lon': float(min_lon),
             'last_seen_time': last_seen_time,
             'last_time': last_time if last_time else None,
-            'drone_detected': is_drone(
-                device_name,
-                mac
-            )
+            'drone_detected': is_drone(common_name, mac)
         }
 
         device_detections[mac].append(detection)
