@@ -81,6 +81,9 @@ drone_ssid_pattern = re.compile("|".join(map(re.escape, known_drone_ssids)))
 DRONE_SSID_PATTERN = re.compile("|".join(map(re.escape, known_drone_ssids)))
 
 # Known Drone MAC Address Prefixes (OUIs)
+known_drone_mac_prefixes = {
+    "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
+}
 # Use a set for O(1) lookup
 KNOWN_DRONE_MAC_PREFIXES = {
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
@@ -201,6 +204,7 @@ def is_drone(ssid, mac_address):
     if ssid and DRONE_SSID_REGEX.search(ssid):
         return True
     mac_prefix = mac_address[:8].lower()  # First 3 octets
+    if mac_prefix in known_drone_mac_prefixes:
     if mac_prefix in KNOWN_DRONE_MAC_PREFIXES:
     if ssid and DRONE_SSID_PATTERN.search(ssid):
         return True
@@ -330,6 +334,9 @@ def extract_device_detections(kismet_file):
             continue
 
         common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+        detection = {
+            'mac': mac,
+            'device_type': device_type,
         detection = {
             'mac': mac,
             'device_type': device_type,
