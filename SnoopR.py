@@ -37,6 +37,8 @@ import os
 import glob
 import re
 import datetime
+import logging
+import argparse
 import re
 from math import radians, cos, sin, asin, sqrt
 from collections import defaultdict
@@ -84,6 +86,7 @@ KNOWN_DRONE_MAC_PREFIXES = {
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
 }
 ]
+# Convert to set for O(1) lookup
 # Use a set for O(1) MAC prefix lookup
 # Use set for O(1) lookup
 drone_mac_prefixes_set = set(known_drone_mac_prefixes)
@@ -327,6 +330,10 @@ def extract_device_detections(kismet_file):
             logging.debug("Skipping device %s due to invalid coordinates.", mac)
             continue
 
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+        detection = {
+            'mac': mac,
+            'device_type': device_type,
         # Sanitize name once
         name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
 
