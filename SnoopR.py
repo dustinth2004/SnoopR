@@ -32,6 +32,7 @@ Requirements:
 
 import sqlite3
 import json
+import re
 import os
 import glob
 import re
@@ -80,6 +81,10 @@ DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
 
 # Pre-compile regex for sanitization
 SANITIZE_PATTERN = re.compile(r"[{}\|\[\]\"'\\<>%]")
+
+# Pre-compile regex and set for faster lookups
+DRONE_SSID_PATTERN = re.compile('|'.join(re.escape(s) for s in known_drone_ssids))
+DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -144,6 +149,9 @@ def haversine(lon1, lat1, lon2, lat2):
     miles = 3956 * c
     return miles
 
+# Regex for sanitization
+SANITIZE_REGEX = re.compile(r'[{}\|\[\]"\'\\<>%]')
+
 def sanitize_string(s):
     """
     Sanitize strings to prevent Jinja2 parsing errors.
@@ -157,6 +165,7 @@ def sanitize_string(s):
     if not s:
         return 'Unknown'
     try:
+        return SANITIZE_REGEX.sub('', str(s))
         s = str(s)
         return SANITIZE_PATTERN.sub('', s)
     except (AttributeError, ValueError):
@@ -173,6 +182,7 @@ def is_drone(ssid, mac_address):
     Returns:
         bool: True if device is a known drone, False otherwise.
     """
+    if ssid and DRONE_SSID_PATTERN.search(ssid):
     if ssid and drone_ssid_pattern.search(ssid):
         return True
     mac_prefix = mac_address[:8].lower()  # First 3 octets
@@ -182,6 +192,11 @@ def is_drone(ssid, mac_address):
     mac_prefix = mac_address[:8].lower()  # First 3 octets
     if mac_prefix in DRONE_MAC_PREFIXES_SET:
         return True
+
+    if mac_address and len(mac_address) >= 8:
+        if mac_address[:8].lower() in DRONE_MAC_PREFIXES_SET:
+            return True
+
     return False
 
 def is_valid_lat_lon(lat, lon):
@@ -283,6 +298,8 @@ def extract_device_detections(kismet_file):
         if not lat_valid or not lon_valid:
             logging.debug(f"Skipping device {mac} due to invalid coordinates.")
             continue
+
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
 
         device_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
         detection = {
