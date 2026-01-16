@@ -1,3 +1,6 @@
+## 2026-01-03 - Reuse Sanitized Strings
+**Learning:** In a tight loop processing 50k+ items, redundant string sanitization calls for the same field (once for display, once for logic checks) add measurable overhead.
+**Action:** Assign the sanitized result to a variable and reuse it.
 ## 2024-05-23 - [Optimization Surprise]
 **Learning:** Python's  can be faster than  for simple sanitization tasks where the characters to be removed are rare. In this specific case,  was ~2x slower than iterative  calls.
 **Action:** Always benchmark micro-optimizations. Don't assume standard library 'optimized' methods are always faster for every workload.
