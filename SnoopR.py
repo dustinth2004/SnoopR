@@ -62,14 +62,14 @@ known_drone_ssids = [
     "DJI-Mavic", "DJI-Avata", "DJI-Thermal", "DJI", "Brinc-Lemur", "Autel-Evo", "DJI-Matrice"
 ]
 # Pre-compile regex for faster SSID lookup
-drone_ssid_pattern = re.compile('|'.join(map(re.escape, known_drone_ssids)))
+DRONE_SSID_PATTERN = re.compile('|'.join(map(re.escape, known_drone_ssids)))
 
 # Known Drone MAC Address Prefixes (OUIs)
 known_drone_mac_prefixes = [
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
 ]
 # Use a set for O(1) MAC prefix lookup
-known_drone_mac_prefixes_set = set(known_drone_mac_prefixes)
+DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -166,10 +166,10 @@ def is_drone(ssid, mac_address):
     Returns:
         bool: True if device is a known drone, False otherwise.
     """
-    if ssid and drone_ssid_pattern.search(ssid):
+    if ssid and DRONE_SSID_PATTERN.search(ssid):
         return True
     mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if mac_prefix in known_drone_mac_prefixes_set:
+    if mac_prefix in DRONE_MAC_PREFIXES_SET:
         return True
     return False
 
