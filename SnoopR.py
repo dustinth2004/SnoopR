@@ -183,6 +183,9 @@ def is_drone(ssid, mac_address):
         bool: True if device is a known drone, False otherwise.
     """
     if ssid and DRONE_SSID_PATTERN.search(ssid):
+        return True
+    mac_prefix = mac_address[:8].lower()  # First 3 octets
+    if mac_prefix in DRONE_MAC_PREFIXES_SET:
     if ssid and drone_ssid_pattern.search(ssid):
         return True
     mac_prefix = mac_address[:8].lower()  # First 3 octets
@@ -300,6 +303,9 @@ def extract_device_detections(kismet_file):
             continue
 
         common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+        detection = {
+            'mac': mac,
+            'device_type': device_type,
 
         device_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
         detection = {

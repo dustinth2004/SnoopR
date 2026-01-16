@@ -1,3 +1,6 @@
+## 2026-01-16 - [Regex vs Loop Performance]
+**Learning:** `re.compile().sub()` is significantly faster (~2x) than iterative `str.replace()` loops for sanitizing short strings (common case), but slightly slower for very long strings. Since this application mostly processes short fields (SSID, Type), regex is the better choice.
+**Action:** Use compiled regex for string sanitization on short fields, but verify with benchmarks on representative data.
 ## 2026-01-15 - String Sanitization Bottleneck
 **Learning:** `extract_device_detections` is a primary bottleneck. `sanitize_string` accounted for ~37% of execution time. Benchmarking showed `re.sub` is faster than `str.replace` loop and `str.translate` for this specific case (possibly due to string characteristics or overhead).
 **Action:** Use `re.compile` and `re.sub` for sanitization.
