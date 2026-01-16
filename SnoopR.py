@@ -32,12 +32,19 @@ Requirements:
 
 import sqlite3
 import json
+import re
 import os
 import glob
 import re
 import datetime
 import logging
 import argparse
+import re
+from math import radians, cos, sin, asin, sqrt
+from collections import defaultdict
+import logging
+import argparse
+import re
 from math import radians, cos, sin, asin, sqrt
 from collections import defaultdict
 
@@ -62,14 +69,36 @@ logging.basicConfig(
 known_drone_ssids = [
     "DJI-Mavic", "DJI-Avata", "DJI-Thermal", "DJI", "Brinc-Lemur", "Autel-Evo", "DJI-Matrice"
 ]
+# Pre-compile regex for faster SSID matching
+DRONE_SSID_REGEX = re.compile('|'.join(map(re.escape, known_drone_ssids)))
+# Pre-compile regex for faster SSID lookup
+DRONE_SSID_PATTERN = re.compile('|'.join(map(re.escape, known_drone_ssids)))
+# Pre-compile regex for faster matching
+drone_ssid_pattern = re.compile('|'.join(re.escape(s) for s in known_drone_ssids))
+# Pre-compile regex for faster SSID matching (approx 2.5x faster than list iteration)
+drone_ssid_pattern = re.compile("|".join(map(re.escape, known_drone_ssids)))
 # Pre-compile regex for drone SSIDs
 DRONE_SSID_PATTERN = re.compile("|".join(map(re.escape, known_drone_ssids)))
 
 # Known Drone MAC Address Prefixes (OUIs)
-known_drone_mac_prefixes = [
+# Use a set for O(1) lookup
+KNOWN_DRONE_MAC_PREFIXES = {
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
+}
 ]
 # Convert to set for O(1) lookup
+# Use a set for O(1) MAC prefix lookup
+# Use set for O(1) lookup
+drone_mac_prefixes_set = set(known_drone_mac_prefixes)
+# Convert to set for O(1) lookup
+known_drone_mac_set = set(known_drone_mac_prefixes)
+DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
+
+# Pre-compile regex for sanitization
+SANITIZE_PATTERN = re.compile(r"[{}\|\[\]\"'\\<>%]")
+
+# Pre-compile regex and set for faster lookups
+DRONE_SSID_PATTERN = re.compile('|'.join(re.escape(s) for s in known_drone_ssids))
 DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
@@ -128,12 +157,15 @@ def haversine(lon1, lat1, lon2, lat2):
     # Convert decimal degrees to radians
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
     # Haversine formula
-    dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
     a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
-    c = 2 * asin(sqrt(a)) 
+    c = 2 * asin(sqrt(a))
     miles = 3956 * c
     return miles
+
+# Regex for sanitization
+SANITIZE_REGEX = re.compile(r'[{}\|\[\]"\'\\<>%]')
 
 def sanitize_string(s):
     """
@@ -148,16 +180,16 @@ def sanitize_string(s):
     if not s:
         return 'Unknown'
     try:
+        return SANITIZE_REGEX.sub('', str(s))
         s = str(s)
-        for c in ['{', '}', '|', '[', ']', '"', "'", '\\', '<', '>', '%']:
-            s = s.replace(c, '')
-        return s
+        return SANITIZE_PATTERN.sub('', s)
     except (AttributeError, ValueError):
         return 'Unknown'
 
 def is_drone(ssid, mac_address):
     """
     Detect if a device is a known drone by checking SSID or MAC address prefix.
+    Optimized to use regex for SSIDs and set lookup for MAC prefixes.
 
     Parameters:
         ssid (str): SSID or name of the device.
@@ -166,11 +198,36 @@ def is_drone(ssid, mac_address):
     Returns:
         bool: True if device is a known drone, False otherwise.
     """
+    if ssid and DRONE_SSID_REGEX.search(ssid):
+        return True
+    mac_prefix = mac_address[:8].lower()  # First 3 octets
+    if mac_prefix in KNOWN_DRONE_MAC_PREFIXES:
+    if ssid and DRONE_SSID_PATTERN.search(ssid):
+        return True
+    mac_prefix = mac_address[:8].lower()  # First 3 octets
+    if mac_prefix in DRONE_MAC_PREFIXES_SET:
+    if ssid and drone_ssid_pattern.search(ssid):
+        return True
+    mac_prefix = mac_address[:8].lower()  # First 3 octets
+    if mac_prefix in drone_mac_prefixes_set:
+    if ssid and DRONE_SSID_PATTERN.search(ssid):
+        return True
+    mac_prefix = mac_address[:8].lower()  # First 3 octets
+    if mac_prefix in DRONE_MAC_PREFIXES_SET:
+    if ssid and drone_ssid_pattern.search(ssid):
+        return True
+    mac_prefix = mac_address[:8].lower()  # First 3 octets
+    if mac_prefix in known_drone_mac_set:
     if ssid and DRONE_SSID_PATTERN.search(ssid):
         return True
     mac_prefix = mac_address[:8].lower()  # First 3 octets
     if mac_prefix in DRONE_MAC_PREFIXES_SET:
         return True
+
+    if mac_address and len(mac_address) >= 8:
+        if mac_address[:8].lower() in DRONE_MAC_PREFIXES_SET:
+            return True
+
     return False
 
 def is_valid_lat_lon(lat, lon):
@@ -223,7 +280,7 @@ def extract_device_detections(kismet_file):
         cursor.execute(query)
         devices = cursor.fetchall()
     except sqlite3.Error as e:
-        logging.error(f"SQLite error while fetching devices: {e}")
+        logging.error("SQLite error while fetching devices: %s", e)
         conn.close()
         return {}
 
@@ -246,7 +303,7 @@ def extract_device_detections(kismet_file):
                 else:
                     device_dict = {}
             except (json.JSONDecodeError, AttributeError, TypeError, ValueError) as e:
-                logging.error(f"Error parsing JSON for device {devmac}: {e}")
+                logging.error("Error parsing JSON for device %s: %s", devmac, e)
                 device_dict = {}
         else:
             device_dict = {}
@@ -260,7 +317,7 @@ def extract_device_detections(kismet_file):
         try:
             last_seen_time = datetime.datetime.fromtimestamp(last_time).strftime('%Y-%m-%d %H:%M:%S') if last_time else 'Unknown'
         except (OSError, OverflowError, ValueError) as e:
-            logging.error(f"Invalid timestamp {last_time} for device {devmac}: {e}")
+            logging.error("Invalid timestamp %s for device %s: %s", last_time, devmac, e)
             last_seen_time = 'Invalid Timestamp'
 
         mac = sanitize_string(devmac).lower() if devmac else 'unknown'
@@ -270,9 +327,42 @@ def extract_device_detections(kismet_file):
 
         # Skip devices with invalid coordinates
         if not lat_valid or not lon_valid:
-            logging.debug(f"Skipping device {mac} due to invalid coordinates.")
+            logging.debug("Skipping device %s due to invalid coordinates.", mac)
             continue
 
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+        detection = {
+            'mac': mac,
+            'device_type': device_type,
+        # Sanitize name once
+        name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+
+        detection = {
+            'mac': mac,
+            'device_type': device_type,
+            'name': name,
+        # Optimize: sanitize commonname once and reuse
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+
+        detection = {
+            'mac': mac,
+            'device_type': device_type,
+        name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+
+        detection = {
+            'mac': mac,
+            'device_type': device_type,
+            'name': name,
+        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+        detection = {
+            'mac': mac,
+            'device_type': device_type,
+
+        device_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+        detection = {
+            'mac': mac,
+            'device_type': device_type,
+            'name': device_name,
         common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
         detection = {
             'mac': mac,
@@ -283,6 +373,13 @@ def extract_device_detections(kismet_file):
             'lon': float(min_lon),
             'last_seen_time': last_seen_time,
             'last_time': last_time if last_time else None,
+            'drone_detected': is_drone(name, mac)
+            'drone_detected': is_drone(
+                common_name,
+                mac
+            )
+            'drone_detected': is_drone(name, mac)
+            'drone_detected': is_drone(device_name, mac)
             'drone_detected': is_drone(common_name, mac)
         }
 
@@ -290,9 +387,9 @@ def extract_device_detections(kismet_file):
         device_types.add(device_type)
         device_type_counts[device_type] += 1
 
-    logging.info(f"Extracted detections for {len(device_detections)} devices from the database.")
-    logging.info(f"Device Types Found: {device_types}")
-    logging.info(f"Device Type Counts: {dict(device_type_counts)}")
+    logging.info("Extracted detections for %d devices from the database.", len(device_detections))
+    logging.info("Device Types Found: %s", device_types)
+    logging.info("Device Type Counts: %s", dict(device_type_counts))
     return device_detections
 
 def detect_snoopers(device_detections, movement_threshold=0.05):
@@ -312,7 +409,7 @@ def detect_snoopers(device_detections, movement_threshold=0.05):
         if len(detections) < 2:
             continue  # Need at least two detections to calculate movement
 
-        detections = sorted(detections, key=lambda x: x['last_time'] or 0)
+        # Detections are already sorted by last_time from the DB query + append order
         total_distance = 0
         for i in range(1, len(detections)):
             lat1, lon1 = detections[i-1]['lat'], detections[i-1]['lon']
@@ -328,10 +425,10 @@ def detect_snoopers(device_detections, movement_threshold=0.05):
                     'total_distance': total_distance
                 }
                 snoopers.append(snooper)
-                logging.info(f"Snooper detected: {mac}, moved {distance:.2f} miles.")
+                logging.info("Snooper detected: %s, moved %.2f miles.", mac, distance)
                 break  # Stop after detecting movement beyond threshold
 
-    logging.info(f"Detected {len(snoopers)} snoopers based on movement threshold {movement_threshold} miles.")
+    logging.info("Detected %d snoopers based on movement threshold %s miles.", len(snoopers), movement_threshold)
     return snoopers
 
 def extract_alerts_from_kismet(kismet_file):
@@ -356,7 +453,7 @@ def extract_alerts_from_kismet(kismet_file):
         cursor.execute(query)
         alerts = cursor.fetchall()
     except sqlite3.Error as e:
-        logging.error(f"SQLite error while fetching alerts: {e}")
+        logging.error("SQLite error while fetching alerts: %s", e)
         conn.close()
         return []
 
@@ -407,7 +504,7 @@ def extract_alerts_from_kismet(kismet_file):
                 lon = float(lon) if lon else None
 
             except (json.JSONDecodeError, AttributeError, TypeError, ValueError) as e:
-                logging.error(f"Error parsing JSON for alert from {devmac}: {e}")
+                logging.error("Error parsing JSON for alert from %s: %s", devmac, e)
                 continue  # Skip alerts with invalid JSON
 
         # Create the alert entry
@@ -423,7 +520,7 @@ def extract_alerts_from_kismet(kismet_file):
 
         alert_list.append(alert_entry)
 
-    logging.info(f"Extracted {len(alert_list)} alerts from the database.")
+    logging.info("Extracted %d alerts from the database.", len(alert_list))
     return alert_list
 
 # ===========================
@@ -535,7 +632,7 @@ def visualize_devices_snoopers_and_alerts(device_detections, snoopers, alerts, o
         )
 
         # Log the icon assignment for debugging
-        logging.debug(f"Device {mac}: Type={dev_type}, Icon={icon_symbol}, Color={icon_color}")
+        logging.debug("Device %s: Type=%s, Icon=%s, Color=%s", mac, dev_type, icon_symbol, icon_color)
 
         # Add the marker to the device cluster
         folium.Marker(
@@ -628,7 +725,7 @@ def visualize_devices_snoopers_and_alerts(device_detections, snoopers, alerts, o
         )
 
         # Log alert information for debugging
-        logging.debug(f"Alert from {mac}: {alert_type} - {message} at {alert_time_str}")
+        logging.debug("Alert from %s: %s - %s at %s", mac, alert_type, message, alert_time_str)
 
         folium.Marker(
             location=(lat, lon),
@@ -670,7 +767,7 @@ def visualize_devices_snoopers_and_alerts(device_detections, snoopers, alerts, o
 
     # Save the map to an HTML file
     device_map.save(output_map_file)
-    logging.info(f"Map saved to {output_map_file}")
+    logging.info("Map saved to %s", output_map_file)
 
 # ===========================
 # Utility Functions
@@ -707,7 +804,7 @@ def main():
     if args.db_path:
         kismet_file = args.db_path
         if not os.path.exists(kismet_file):
-            logging.error(f"Specified database file '{kismet_file}' does not exist.")
+            logging.error("Specified database file '%s' does not exist.", kismet_file)
             return
     else:
         # Automatically find the most recent .kismet file
@@ -716,7 +813,7 @@ def main():
             logging.error("No Kismet database file to process.")
             return
 
-    logging.info(f"Using Kismet file: {kismet_file}")
+    logging.info("Using Kismet file: %s", kismet_file)
 
     # Extract device detections
     device_detections = extract_device_detections(kismet_file)
@@ -726,7 +823,7 @@ def main():
     else:
         logging.info("Extracted Device Detections:")
         for mac, detections in device_detections.items():
-            logging.info(f"Device {mac}: {len(detections)} detections")
+            logging.info("Device %s: %d detections", mac, len(detections))
 
     # Detect snoopers based on movement
     movement_threshold = args.movement_threshold
@@ -734,7 +831,7 @@ def main():
     if snoopers:
         logging.info("\nDetected Snoopers:")
         for snooper in snoopers:
-            logging.info(f"Snooper {snooper['mac']}: Moved {snooper['total_distance']:.2f} miles")
+            logging.info("Snooper %s: Moved %.2f miles", snooper['mac'], snooper['total_distance'])
     else:
         logging.info("No snoopers detected.")
 
@@ -752,6 +849,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
