@@ -209,6 +209,7 @@ def is_drone(ssid, mac_address):
     if ssid and DRONE_SSID_PATTERN.search(ssid):
         return True
     mac_prefix = mac_address[:8].lower()  # First 3 octets
+    if mac_prefix in known_drone_mac_prefixes:
     if mac_prefix in DRONE_MAC_PREFIXES_SET:
     if ssid and drone_ssid_pattern.search(ssid):
         return True
