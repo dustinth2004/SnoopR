@@ -198,8 +198,35 @@ The following Python libraries are required to run SnoopR. They are listed in th
 
 Installation Guide
 
+## 🚀 Easy Setup (Recommended)
 
-## ⚙️ Step-by-Step Guide to Install and Run SnoopR for Planes (ADS-B) and TPMS Detection
+SnoopR now comes with an interactive setup assistant that handles everything for you.
+
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/AlienMajik/SnoopR.git
+    cd SnoopR
+    ```
+
+2.  **Run the Setup Assistant**:
+    ```bash
+    chmod +x setup.sh
+    ./setup.sh
+    ```
+    *   This script will verify your environment, install necessary system packages (Kismet, RTL-SDR tools), set up the Python environment, and check your hardware.
+    *   It will create a handy `start_snoopr.sh` script for you.
+
+3.  **Start SnoopR**:
+    ```bash
+    ./start_snoopr.sh
+    ```
+    *   This command launches Kismet (if not running), starts the web server, and runs SnoopR to update the map in real-time.
+
+---
+
+## ⚙️ Manual Step-by-Step Guide (Advanced)
+
+If you prefer to configure everything manually, follow these steps.
 
 ### **Step 1: Hardware Setup**
 

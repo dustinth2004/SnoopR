@@ -35,16 +35,9 @@ import json
 import re
 import os
 import glob
-import re
 import datetime
 import logging
 import argparse
-import re
-from math import radians, cos, sin, asin, sqrt
-from collections import defaultdict
-import logging
-import argparse
-import re
 from math import radians, cos, sin, asin, sqrt
 from collections import defaultdict
 
@@ -69,40 +62,20 @@ logging.basicConfig(
 known_drone_ssids = [
     "DJI-Mavic", "DJI-Avata", "DJI-Thermal", "DJI", "Brinc-Lemur", "Autel-Evo", "DJI-Matrice"
 ]
+
 # Pre-compile regex for faster SSID matching
-DRONE_SSID_REGEX = re.compile('|'.join(map(re.escape, known_drone_ssids)))
-# Pre-compile regex for faster SSID lookup
 DRONE_SSID_PATTERN = re.compile('|'.join(map(re.escape, known_drone_ssids)))
-# Pre-compile regex for faster matching
-drone_ssid_pattern = re.compile('|'.join(re.escape(s) for s in known_drone_ssids))
-# Pre-compile regex for faster SSID matching (approx 2.5x faster than list iteration)
-drone_ssid_pattern = re.compile("|".join(map(re.escape, known_drone_ssids)))
-# Pre-compile regex for drone SSIDs
-DRONE_SSID_PATTERN = re.compile("|".join(map(re.escape, known_drone_ssids)))
 
 # Known Drone MAC Address Prefixes (OUIs)
 known_drone_mac_prefixes = {
     "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
 }
+
 # Use a set for O(1) lookup
-KNOWN_DRONE_MAC_PREFIXES = {
-    "60:60:1f", "90:3a:e6", "ac:7b:a1", "dc:a6:32", "00:1e:c0", "18:18:9f", "68:ad:2f"
-}
-]
-# Convert to set for O(1) lookup
-# Use a set for O(1) MAC prefix lookup
-# Use set for O(1) lookup
-drone_mac_prefixes_set = set(known_drone_mac_prefixes)
-# Convert to set for O(1) lookup
-known_drone_mac_set = set(known_drone_mac_prefixes)
 DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
 
 # Pre-compile regex for sanitization
 SANITIZE_PATTERN = re.compile(r"[{}\|\[\]\"'\\<>%]")
-
-# Pre-compile regex and set for faster lookups
-DRONE_SSID_PATTERN = re.compile('|'.join(re.escape(s) for s in known_drone_ssids))
-DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -167,9 +140,6 @@ def haversine(lon1, lat1, lon2, lat2):
     miles = 3956 * c
     return miles
 
-# Regex for sanitization
-SANITIZE_REGEX = re.compile(r'[{}\|\[\]"\'\\<>%]')
-
 def sanitize_string(s):
     """
     Sanitize strings to prevent Jinja2 parsing errors.
@@ -183,7 +153,6 @@ def sanitize_string(s):
     if not s:
         return 'Unknown'
     try:
-        return SANITIZE_REGEX.sub('', str(s))
         s = str(s)
         return SANITIZE_PATTERN.sub('', s)
     except (AttributeError, ValueError):
@@ -201,35 +170,7 @@ def is_drone(ssid, mac_address):
     Returns:
         bool: True if device is a known drone, False otherwise.
     """
-    if ssid and DRONE_SSID_REGEX.search(ssid):
-        return True
-    mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if mac_prefix in known_drone_mac_prefixes:
-    if mac_prefix in KNOWN_DRONE_MAC_PREFIXES:
     if ssid and DRONE_SSID_PATTERN.search(ssid):
-        return True
-    # First 3 octets (e.g. "60:60:1f")
-    mac_prefix = mac_address[:8].lower()
-    if mac_prefix in known_drone_mac_prefixes:
-    mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if mac_prefix in known_drone_mac_prefixes:
-    if mac_prefix in DRONE_MAC_PREFIXES_SET:
-    if ssid and drone_ssid_pattern.search(ssid):
-        return True
-    mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if mac_prefix in drone_mac_prefixes_set:
-    if ssid and DRONE_SSID_PATTERN.search(ssid):
-        return True
-    mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if mac_prefix in DRONE_MAC_PREFIXES_SET:
-    if ssid and drone_ssid_pattern.search(ssid):
-        return True
-    mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if mac_prefix in known_drone_mac_set:
-    if ssid and DRONE_SSID_PATTERN.search(ssid):
-        return True
-    mac_prefix = mac_address[:8].lower()  # First 3 octets
-    if mac_prefix in DRONE_MAC_PREFIXES_SET:
         return True
 
     if mac_address and len(mac_address) >= 8:
@@ -318,9 +259,6 @@ def extract_device_detections(kismet_file):
 
         device_type = sanitize_string(dev_type).lower() if dev_type else 'unknown'
 
-        # Include ADS-B devices to map planes
-        # No longer excluding 'airplane' or 'ads-b' device types
-
         # Convert timestamp
         try:
             last_seen_time = datetime.datetime.fromtimestamp(last_time).strftime('%Y-%m-%d %H:%M:%S') if last_time else 'Unknown'
@@ -333,47 +271,10 @@ def extract_device_detections(kismet_file):
         # Skip devices with invalid coordinates
         if not is_valid_lat_lon(min_lat, min_lon):
             logging.debug(f"Skipping device {mac} due to invalid coordinates.")
-        if not lat_valid or not lon_valid:
-            logging.debug("Skipping device %s due to invalid coordinates.", mac)
             continue
 
         common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
-        detection = {
-            'mac': mac,
-            'device_type': device_type,
-        detection = {
-            'mac': mac,
-            'device_type': device_type,
-        # Sanitize name once
-        name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
 
-        detection = {
-            'mac': mac,
-            'device_type': device_type,
-            'name': name,
-        # Optimize: sanitize commonname once and reuse
-        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
-
-        detection = {
-            'mac': mac,
-            'device_type': device_type,
-        name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
-
-        detection = {
-            'mac': mac,
-            'device_type': device_type,
-            'name': name,
-        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
-        detection = {
-            'mac': mac,
-            'device_type': device_type,
-
-        device_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
-        detection = {
-            'mac': mac,
-            'device_type': device_type,
-            'name': device_name,
-        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
         detection = {
             'mac': mac,
             'device_type': device_type,
@@ -383,13 +284,6 @@ def extract_device_detections(kismet_file):
             'lon': float(min_lon),
             'last_seen_time': last_seen_time,
             'last_time': last_time if last_time else None,
-            'drone_detected': is_drone(name, mac)
-            'drone_detected': is_drone(
-                common_name,
-                mac
-            )
-            'drone_detected': is_drone(name, mac)
-            'drone_detected': is_drone(device_name, mac)
             'drone_detected': is_drone(common_name, mac)
         }
 
@@ -420,7 +314,6 @@ def detect_snoopers(device_detections, movement_threshold=0.05):
             continue  # Need at least two detections to calculate movement
 
         # Detections are already sorted by last_time from the SQL query
-        # Detections are already sorted by last_time from the DB query + append order
         total_distance = 0
         for i in range(1, len(detections)):
             lat1, lon1 = detections[i-1]['lat'], detections[i-1]['lon']
