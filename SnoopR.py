@@ -322,10 +322,9 @@ def extract_device_detections(kismet_file):
 
         mac = sanitize_string(devmac).lower() if devmac else 'unknown'
 
-        lat_valid = is_valid_lat_lon(min_lat, min_lon)
-        lon_valid = is_valid_lat_lon(min_lat, min_lon)
-
         # Skip devices with invalid coordinates
+        if not is_valid_lat_lon(min_lat, min_lon):
+            logging.debug(f"Skipping device {mac} due to invalid coordinates.")
         if not lat_valid or not lon_valid:
             logging.debug("Skipping device %s due to invalid coordinates.", mac)
             continue
@@ -409,6 +408,7 @@ def detect_snoopers(device_detections, movement_threshold=0.05):
         if len(detections) < 2:
             continue  # Need at least two detections to calculate movement
 
+        # Detections are already sorted by last_time from the SQL query
         # Detections are already sorted by last_time from the DB query + append order
         total_distance = 0
         for i in range(1, len(detections)):
@@ -546,11 +546,8 @@ def visualize_devices_snoopers_and_alerts(device_detections, snoopers, alerts, o
     for detections in device_detections.values():
         device_data.extend(detections)
 
-    # Filter out devices with invalid coordinates
-    device_data = [
-        d for d in device_data
-        if is_valid_lat_lon(d['lat'], d['lon'])
-    ]
+    # Note: device_data already contains only valid coordinates as filtered in extract_device_detections
+
     # Sort devices by last_time for chronological order
     device_data = sorted(device_data, key=lambda x: x['last_time'] or 0)
 
