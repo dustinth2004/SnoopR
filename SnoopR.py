@@ -219,15 +219,40 @@ def extract_device_detections(kismet_file):
     cursor = conn.cursor()
 
     # Fetch all device detections with timestamps and location data
-    query = """
+    # Optimized query to extract commonname and crypt using json_extract
+    # This avoids parsing the full JSON blob in Python, significantly improving performance.
+    query_optimized = """
+    SELECT devmac, type,
+           json_extract(device, '$."kismet.device.base.commonname"'),
+           json_extract(device, '$."kismet.device.base.crypt"'),
+           min_lat, min_lon, last_time
+    FROM devices
+    WHERE min_lat IS NOT NULL AND min_lon IS NOT NULL
+    ORDER BY last_time ASC;
+    """
+
+    # Fallback query
+    query_original = """
     SELECT devmac, type, device, min_lat, min_lon, last_time
     FROM devices
     WHERE min_lat IS NOT NULL AND min_lon IS NOT NULL
     ORDER BY last_time ASC;
     """
+
+    use_optimized = False
     try:
-        cursor.execute(query)
+        cursor.execute(query_optimized)
         devices = cursor.fetchall()
+        use_optimized = True
+    except sqlite3.OperationalError:
+        # Fallback to original query if json_extract is not supported
+        try:
+            cursor.execute(query_original)
+            devices = cursor.fetchall()
+        except sqlite3.Error as e:
+            logging.error("SQLite error while fetching devices: %s", e)
+            conn.close()
+            return {}
     except sqlite3.Error as e:
         logging.error("SQLite error while fetching devices: %s", e)
         conn.close()
@@ -240,22 +265,31 @@ def extract_device_detections(kismet_file):
     device_type_counts = defaultdict(int)
 
     for device in devices:
-        devmac, dev_type, device_blob, min_lat, min_lon, last_time = device
-
-        # Handle decoding the device blob
-        if device_blob:
-            try:
-                if isinstance(device_blob, bytes):
-                    device_dict = json.loads(device_blob.decode('utf-8', errors='ignore'))
-                elif isinstance(device_blob, str):
-                    device_dict = json.loads(device_blob)
-                else:
-                    device_dict = {}
-            except (json.JSONDecodeError, AttributeError, TypeError, ValueError) as e:
-                logging.error("Error parsing JSON for device %s: %s", devmac, e)
-                device_dict = {}
+        if use_optimized:
+            devmac, dev_type, common_name_raw, crypt_raw, min_lat, min_lon, last_time = device
+            # Ensure None is handled as 'Unknown' to match original behavior
+            common_name = sanitize_string(common_name_raw if common_name_raw is not None else 'Unknown')
+            encryption = sanitize_string(crypt_raw if crypt_raw is not None else 'Unknown')
         else:
-            device_dict = {}
+            devmac, dev_type, device_blob, min_lat, min_lon, last_time = device
+
+            # Handle decoding the device blob
+            if device_blob:
+                try:
+                    if isinstance(device_blob, bytes):
+                        device_dict = json.loads(device_blob.decode('utf-8', errors='ignore'))
+                    elif isinstance(device_blob, str):
+                        device_dict = json.loads(device_blob)
+                    else:
+                        device_dict = {}
+                except (json.JSONDecodeError, AttributeError, TypeError, ValueError) as e:
+                    logging.error("Error parsing JSON for device %s: %s", devmac, e)
+                    device_dict = {}
+            else:
+                device_dict = {}
+
+            common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
+            encryption = sanitize_string(device_dict.get('kismet.device.base.crypt', 'Unknown'))
 
         device_type = sanitize_string(dev_type).lower() if dev_type else 'unknown'
 
@@ -273,13 +307,11 @@ def extract_device_detections(kismet_file):
             logging.debug(f"Skipping device {mac} due to invalid coordinates.")
             continue
 
-        common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
-
         detection = {
             'mac': mac,
             'device_type': device_type,
             'name': common_name,
-            'encryption': sanitize_string(device_dict.get('kismet.device.base.crypt', 'Unknown')),
+            'encryption': encryption,
             'lat': float(min_lat),
             'lon': float(min_lon),
             'last_seen_time': last_seen_time,
