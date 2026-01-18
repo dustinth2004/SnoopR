@@ -267,9 +267,9 @@ def extract_device_detections(kismet_file):
     for device in devices:
         if use_optimized:
             devmac, dev_type, common_name_raw, crypt_raw, min_lat, min_lon, last_time = device
-            # Ensure None is handled as 'Unknown' to match original behavior
-            common_name = sanitize_string(common_name_raw if common_name_raw is not None else 'Unknown')
-            encryption = sanitize_string(crypt_raw if crypt_raw is not None else 'Unknown')
+            # Optimize: Pass raw value to sanitize_string which handles None efficiently
+            common_name = sanitize_string(common_name_raw)
+            encryption = sanitize_string(crypt_raw)
         else:
             devmac, dev_type, device_blob, min_lat, min_lon, last_time = device
 
@@ -288,8 +288,8 @@ def extract_device_detections(kismet_file):
             else:
                 device_dict = {}
 
-            common_name = sanitize_string(device_dict.get('kismet.device.base.commonname', 'Unknown'))
-            encryption = sanitize_string(device_dict.get('kismet.device.base.crypt', 'Unknown'))
+            common_name = sanitize_string(device_dict.get('kismet.device.base.commonname'))
+            encryption = sanitize_string(device_dict.get('kismet.device.base.crypt'))
 
         device_type = sanitize_string(dev_type).lower() if dev_type else 'unknown'
 
@@ -300,7 +300,8 @@ def extract_device_detections(kismet_file):
             logging.error("Invalid timestamp %s for device %s: %s", last_time, devmac, e)
             last_seen_time = 'Invalid Timestamp'
 
-        mac = sanitize_string(devmac).lower() if devmac else 'unknown'
+        # Optimize: Skip regex sanitization for MACs as they are trusted structure
+        mac = devmac.lower() if devmac else 'unknown'
 
         # Skip devices with invalid coordinates
         if not is_valid_lat_lon(min_lat, min_lon):
