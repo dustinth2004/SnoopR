@@ -37,3 +37,11 @@
 ## 2024-05-23 - Regex vs List Iteration for Substring Matching
 **Learning:** Using `re.compile(r'|'.join(...))` to check if any of a list of substrings is present in a string is significantly faster (approx 2.5x-4x) than `any(sub in s for sub in list)`.
 **Action:** Use regex for multi-substring search.
+
+## 2026-01-17 - Sanitization Overhead on None
+**Learning:** Passing `x if x is not None else 'Unknown'` to a function that already handles `None` efficiently (e.g. `if not s: return 'Unknown'`) defeats the optimization and forces the slow path (Regex) on the fallback string.
+**Action:** Trust the function's internal handling of `None` and pass the raw value.
+
+## 2026-01-17 - Loop Hoisting in Python
+**Learning:** Hoisting a conditional check `if use_optimized:` out of a loop (duplicating the loop) yielded no measurable performance benefit (or was slightly slower) in Python for this use case, likely due to code size/cache or interpreter overhead.
+**Action:** Don't optimize loop conditionals prematurely unless the loop body is extremely tight.
