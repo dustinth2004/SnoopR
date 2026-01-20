@@ -38,7 +38,7 @@ import glob
 import datetime
 import logging
 import argparse
-from math import radians, cos, sin, asin, sqrt
+from math import cos, sin, asin, sqrt
 from collections import defaultdict
 
 import folium
@@ -130,12 +130,17 @@ def haversine(lon1, lat1, lon2, lat2):
     Calculate the great circle distance between two points on the Earth (specified in decimal degrees).
     Returns distance in miles.
     """
-    # Convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    # Convert decimal degrees to radians using inline multiplication
+    k = 0.017453292519943295  # pi / 180
+    lon1 *= k
+    lat1 *= k
+    lon2 *= k
+    lat2 *= k
+
     # Haversine formula
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    a = sin(dlat * 0.5)**2 + cos(lat1) * cos(lat2) * sin(dlon * 0.5)**2
     c = 2 * asin(sqrt(a))
     miles = 3956 * c
     return miles
