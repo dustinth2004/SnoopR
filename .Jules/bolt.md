@@ -37,3 +37,7 @@
 ## 2024-05-23 - Regex vs List Iteration for Substring Matching
 **Learning:** Using `re.compile(r'|'.join(...))` to check if any of a list of substrings is present in a string is significantly faster (approx 2.5x-4x) than `any(sub in s for sub in list)`.
 **Action:** Use regex for multi-substring search.
+
+## 2026-01-16 - Function Call Overhead in Tight Loops
+**Learning:** In Python, replacing `map(function, list)` with inline operations can significantly reduce overhead in tight loops. For `haversine`, replacing `map(radians, ...)` with inline multiplication (`* 0.01745...`) improved performance by ~30%.
+**Action:** Look for `map()` usage in critical paths (like distance calculations in loops) and inline simple math operations.
