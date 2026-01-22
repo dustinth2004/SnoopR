@@ -38,7 +38,7 @@ import glob
 import datetime
 import logging
 import argparse
-from math import radians, cos, sin, asin, sqrt
+from math import cos, sin, asin, sqrt
 from collections import defaultdict
 
 import folium
@@ -73,6 +73,9 @@ known_drone_mac_prefixes = {
 
 # Use a set for O(1) lookup
 DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
+
+# Constant for degrees to radians conversion
+DEG_TO_RAD = 0.017453292519943295
 
 # Pre-compile regex for sanitization
 SANITIZE_PATTERN = re.compile(r"[{}\|\[\]\"'\\<>%]")
@@ -131,7 +134,11 @@ def haversine(lon1, lat1, lon2, lat2):
     Returns distance in miles.
     """
     # Convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    lon1 *= DEG_TO_RAD
+    lat1 *= DEG_TO_RAD
+    lon2 *= DEG_TO_RAD
+    lat2 *= DEG_TO_RAD
+
     # Haversine formula
     dlon = lon2 - lon1
     dlat = lat2 - lat1
