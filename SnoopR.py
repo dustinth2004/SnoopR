@@ -38,7 +38,7 @@ import glob
 import datetime
 import logging
 import argparse
-from math import radians, cos, sin, asin, sqrt
+from math import cos, sin, asin, sqrt, pi
 from collections import defaultdict
 
 import folium
@@ -76,6 +76,9 @@ DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
 
 # Pre-compile regex for sanitization
 SANITIZE_PATTERN = re.compile(r"[{}\|\[\]\"'\\<>%]")
+
+# Constant for degrees to radians conversion
+DEG_TO_RAD = pi / 180.0
 
 # Mapping of device types to Folium icons and colors (all keys are lowercase)
 DEVICE_TYPE_MAPPING = {
@@ -130,8 +133,12 @@ def haversine(lon1, lat1, lon2, lat2):
     Calculate the great circle distance between two points on the Earth (specified in decimal degrees).
     Returns distance in miles.
     """
-    # Convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    # Convert decimal degrees to radians using inline multiplication for performance
+    lon1 *= DEG_TO_RAD
+    lat1 *= DEG_TO_RAD
+    lon2 *= DEG_TO_RAD
+    lat2 *= DEG_TO_RAD
+
     # Haversine formula
     dlon = lon2 - lon1
     dlat = lat2 - lat1
