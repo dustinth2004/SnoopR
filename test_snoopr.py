@@ -31,5 +31,17 @@ class TestSnoopR(unittest.TestCase):
         self.assertFalse(SnoopR.is_drone(None, "00:11:22:33:44:55"))
         self.assertFalse(SnoopR.is_drone("", "00:11:22:33:44:55"))
 
+    def test_haversine(self):
+        # Coordinates for New York and Los Angeles
+        lon1, lat1 = -73.935242, 40.730610
+        lon2, lat2 = -118.243683, 34.052235
+
+        # Expected distance is approx 2447.47 miles
+        distance = SnoopR.haversine(lon1, lat1, lon2, lat2)
+        self.assertAlmostEqual(distance, 2447.4707, places=4)
+
+        # Distance between same points should be 0
+        self.assertEqual(SnoopR.haversine(lon1, lat1, lon1, lat1), 0.0)
+
 if __name__ == '__main__':
     unittest.main()
