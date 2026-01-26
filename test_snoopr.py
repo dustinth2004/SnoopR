@@ -31,5 +31,20 @@ class TestSnoopR(unittest.TestCase):
         self.assertFalse(SnoopR.is_drone(None, "00:11:22:33:44:55"))
         self.assertFalse(SnoopR.is_drone("", "00:11:22:33:44:55"))
 
+    def test_haversine(self):
+        """Test the haversine distance calculation."""
+        # Distance between (0,0) and (0,1) should be approx 69.05 miles
+        # 1 degree of latitude is approx 69 miles.
+        dist = SnoopR.haversine(0, 0, 0, 1)
+        self.assertAlmostEqual(dist, 69.05, delta=0.1)
+
+        # Distance between same points should be 0
+        self.assertEqual(SnoopR.haversine(10, 20, 10, 20), 0.0)
+
+        # Check commutativity
+        d1 = SnoopR.haversine(-80.0, 30.0, -81.0, 31.0)
+        d2 = SnoopR.haversine(-81.0, 31.0, -80.0, 30.0)
+        self.assertAlmostEqual(d1, d2)
+
 if __name__ == '__main__':
     unittest.main()
