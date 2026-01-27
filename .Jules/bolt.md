@@ -37,3 +37,7 @@
 ## 2024-05-23 - Regex vs List Iteration for Substring Matching
 **Learning:** Using `re.compile(r'|'.join(...))` to check if any of a list of substrings is present in a string is significantly faster (approx 2.5x-4x) than `any(sub in s for sub in list)`.
 **Action:** Use regex for multi-substring search.
+
+## 2026-01-16 - Math Optimization in Hot Loops
+**Learning:** Inline arithmetic operations (multiplication) are significantly faster (~40%) than using `map()` and function calls (like `radians()`) inside tight loops like `haversine`. Also `x * x` is faster than `x ** 2`.
+**Action:** Inline constants and simple math in performance-critical loops.
