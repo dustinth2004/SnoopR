@@ -38,7 +38,7 @@ import glob
 import datetime
 import logging
 import argparse
-from math import radians, cos, sin, asin, sqrt
+from math import radians, cos, sin, asin, sqrt, pi
 from collections import defaultdict
 
 import folium
@@ -73,6 +73,9 @@ known_drone_mac_prefixes = {
 
 # Use a set for O(1) lookup
 DRONE_MAC_PREFIXES_SET = set(known_drone_mac_prefixes)
+
+# Global constant for degree to radian conversion
+DEG_TO_RAD = pi / 180.0
 
 # Pre-compile regex for sanitization
 SANITIZE_PATTERN = re.compile(r"[{}\|\[\]\"'\\<>%]")
@@ -130,12 +133,21 @@ def haversine(lon1, lat1, lon2, lat2):
     Calculate the great circle distance between two points on the Earth (specified in decimal degrees).
     Returns distance in miles.
     """
-    # Convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    # Convert decimal degrees to radians using inline multiplication for performance
+    lon1 = lon1 * DEG_TO_RAD
+    lat1 = lat1 * DEG_TO_RAD
+    lon2 = lon2 * DEG_TO_RAD
+    lat2 = lat2 * DEG_TO_RAD
+
     # Haversine formula
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+
+    # Optimization: sin(x/2)**2 is slower than sin(x*0.5)*sin(x*0.5)
+    sin_dlat = sin(dlat * 0.5)
+    sin_dlon = sin(dlon * 0.5)
+
+    a = sin_dlat * sin_dlat + cos(lat1) * cos(lat2) * sin_dlon * sin_dlon
     c = 2 * asin(sqrt(a))
     miles = 3956 * c
     return miles
