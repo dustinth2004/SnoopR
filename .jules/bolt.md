@@ -13,3 +13,6 @@
 ## 2024-05-23 - [Sanitization Optimization Surprise]
 **Learning:** `str.translate` is not always faster than multiple `str.replace` calls.
 **Action:** Always benchmark specific use cases. In this project, `sanitize_string` with iterative `replace` (11 chars) was ~2x faster than `translate` for short strings. This counter-intuitive result prevented a "optimization" that would have been a regression.
+## 2026-02-01 - Inline Math vs Functions
+**Learning:** In tight loops like `haversine`, replacing `map(radians, ...)` and `sin(...)**2` with inline multiplication and squaring provided a ~2x speedup.
+**Action:** Prefer inline arithmetic over helper functions or high-level abstractions in critical math paths.
