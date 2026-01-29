@@ -16,6 +16,16 @@ class TestSnoopR(unittest.TestCase):
         self.assertEqual(SnoopR.sanitize_string(None), "Unknown")
         self.assertEqual(SnoopR.sanitize_string(123), "123")
 
+    def test_haversine(self):
+        # Test specific known distance
+        # Point 1: -80.0, 30.0
+        # Point 2: -81.0, 31.0
+        dist = SnoopR.haversine(-80.0, 30.0, -81.0, 31.0)
+        self.assertAlmostEqual(dist, 91.1387, places=3)
+
+        # Zero distance
+        self.assertEqual(SnoopR.haversine(10, 10, 10, 10), 0)
+
     def test_is_drone(self):
         # Known SSIDs
         self.assertTrue(SnoopR.is_drone("My DJI-Mavic Drone", "00:00:00:00:00:00"))
