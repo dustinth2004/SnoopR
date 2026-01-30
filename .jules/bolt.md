@@ -13,3 +13,6 @@
 ## 2024-05-23 - [Sanitization Optimization Surprise]
 **Learning:** `str.translate` is not always faster than multiple `str.replace` calls.
 **Action:** Always benchmark specific use cases. In this project, `sanitize_string` with iterative `replace` (11 chars) was ~2x faster than `translate` for short strings. This counter-intuitive result prevented a "optimization" that would have been a regression.
+## 2026-01-05 - Optimize Haversine Calculation
+**Learning:** Replacing `map(radians, list)` with inline multiplication by a pre-calculated constant (`pi / 180`) yielded a ~1.62x speedup in the `haversine` function. Python's function call overhead and generator creation in `map` can be significant in tight loops.
+**Action:** Prefer inline arithmetic for simple element-wise transformations in performance-critical code sections.
