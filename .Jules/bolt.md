@@ -37,3 +37,7 @@
 ## 2024-05-23 - Regex vs List Iteration for Substring Matching
 **Learning:** Using `re.compile(r'|'.join(...))` to check if any of a list of substrings is present in a string is significantly faster (approx 2.5x-4x) than `any(sub in s for sub in list)`.
 **Action:** Use regex for multi-substring search.
+
+## 2026-02-01 - Haversine Optimization
+**Learning:** `map(func, list)` in Python has overhead due to iterator creation and function calls. Replacing `map(radians, ...)` with inline multiplication (`x * CONST`) yielded a ~1.6x speedup for the `haversine` function.
+**Action:** Prefer inline arithmetic over `map` for simple element-wise transformations in hot loops.
