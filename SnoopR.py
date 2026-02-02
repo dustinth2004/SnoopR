@@ -38,7 +38,7 @@ import glob
 import datetime
 import logging
 import argparse
-from math import radians, cos, sin, asin, sqrt
+from math import pi, cos, sin, asin, sqrt
 from collections import defaultdict
 
 import folium
@@ -57,6 +57,9 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+# Constants for Haversine calculation
+DEG_TO_RAD = pi / 180.0
 
 # List of known drone SSIDs or MAC address prefixes (OUIs)
 known_drone_ssids = [
@@ -130,12 +133,16 @@ def haversine(lon1, lat1, lon2, lat2):
     Calculate the great circle distance between two points on the Earth (specified in decimal degrees).
     Returns distance in miles.
     """
-    # Convert decimal degrees to radians
-    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+    # Convert decimal degrees to radians using inline multiplication for speed
+    lon1 = lon1 * DEG_TO_RAD
+    lat1 = lat1 * DEG_TO_RAD
+    lon2 = lon2 * DEG_TO_RAD
+    lat2 = lat2 * DEG_TO_RAD
+
     # Haversine formula
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    a = sin(dlat * 0.5)**2 + cos(lat1) * cos(lat2) * sin(dlon * 0.5)**2
     c = 2 * asin(sqrt(a))
     miles = 3956 * c
     return miles
