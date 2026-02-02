@@ -31,5 +31,15 @@ class TestSnoopR(unittest.TestCase):
         self.assertFalse(SnoopR.is_drone(None, "00:11:22:33:44:55"))
         self.assertFalse(SnoopR.is_drone("", "00:11:22:33:44:55"))
 
+    def test_haversine(self):
+        # Distance between two known points
+        # New York (40.7128, -74.0060) to London (51.5074, -0.1278)
+        # Expected distance approx 3461 miles
+        dist = SnoopR.haversine(-74.0060, 40.7128, -0.1278, 51.5074)
+        self.assertAlmostEqual(dist, 3461, delta=50)
+
+        # Same point
+        self.assertEqual(SnoopR.haversine(0, 0, 0, 0), 0)
+
 if __name__ == '__main__':
     unittest.main()
