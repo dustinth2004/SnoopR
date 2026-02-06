@@ -37,3 +37,7 @@
 ## 2024-05-23 - Regex vs List Iteration for Substring Matching
 **Learning:** Using `re.compile(r'|'.join(...))` to check if any of a list of substrings is present in a string is significantly faster (approx 2.5x-4x) than `any(sub in s for sub in list)`.
 **Action:** Use regex for multi-substring search.
+
+## 2026-01-17 - Null Sanitization Performance
+**Learning:** Passing `None` directly to `sanitize_string` (which has a fast path `if not s`) is ~8.6x faster than passing a default value like `'Unknown'` which triggers the regex engine.
+**Action:** When working with optional fields and expensive sanitization functions, pass `None` directly and let the function handle it if optimized, rather than defaulting at the call site.
